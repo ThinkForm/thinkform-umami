@@ -2,7 +2,7 @@ services:
   umami:
     image: ghcr.io/umami-software/umami:latest
     ports:
-      - "4000:3000"
+      - "${HOST_PORT:-4000}:3000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
       APP_SECRET: ${APP_SECRET}
