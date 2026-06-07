@@ -32,3 +32,4 @@ services:
       retries: 5
 volumes:
   umami-db-data:
+    name: ${DB_VOLUME_NAME:-umami-db-data}
