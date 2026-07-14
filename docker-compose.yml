@@ -33,7 +33,58 @@ services:
     networks:
       default:
         aliases:
-          - ${UMAMI_DB_NETWORK_ALIAS-umami-production-db}
+          - ${DB_NETWORK_ALIAS-umami-production-db}
+
+  # One-shot: creates/re-passwords the read-only postgres_exporter role.
+  # Runs every deploy (restart: "no", re-run fresh each time) since the role
+  # can't be seeded via docker-entrypoint-initdb.d on an already-initialized
+  # data volume.
+  postgres-exporter-init:
+    image: postgres:15-alpine
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      POSTGRES_EXPORTER_PASSWORD: ${POSTGRES_EXPORTER_PASSWORD}
+    volumes:
+      - ./postgres-exporter/init.sql:/init.sql:ro
+    entrypoint:
+      - "sh"
+      - "-c"
+      - 'psql -v ON_ERROR_STOP=1 -v exporter_password="$${POSTGRES_EXPORTER_PASSWORD}" -f /init.sql'
+    networks:
+      - default
+
+  # Exposed only on the default network (to reach db) and
+  # tf-observability-agent (so this server's own Alloy can scrape it and
+  # push the metrics onward to the central Prometheus) — never published
+  # to the host. See thinkform-infra/observability-agent for the scrape
+  # config, and observability-core for the dashboard.
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: umami-postgres-exporter
+    restart: unless-stopped
+    depends_on:
+      postgres-exporter-init:
+        condition: service_completed_successfully
+    environment:
+      DATA_SOURCE_NAME: "host=db port=5432 user=postgres_exporter password=${POSTGRES_EXPORTER_PASSWORD} dbname=${POSTGRES_DB} sslmode=disable"
+    networks:
+      - default
+      - tf-observability-agent
+
+networks:
+  # Pre-existing network owned by thinkform-infra/observability-agent —
+  # lets this server's own Alloy scrape postgres-exporter without
+  # publishing it, then remote_write the metrics onward to Prometheus.
+  tf-observability-agent:
+    external: true
+
 volumes:
   umami-db-data:
     name: ${DB_VOLUME_NAME:-umami-db-data}
