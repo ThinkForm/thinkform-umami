@@ -33,7 +33,7 @@ services:
     networks:
       default:
         aliases:
-          - ${DB_NETWORK_ALIAS-umami-production-db}
+          - ${DB_NETWORK_ALIAS}
 
   # One-shot: creates/re-passwords the read-only postgres_exporter role.
   # Runs every deploy (restart: "no", re-run fresh each time) since the role
