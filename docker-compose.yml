@@ -63,7 +63,7 @@ services:
   # config, and observability-core for the dashboard.
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: umami-postgres-exporter
+    container_name: ${POSTGRES_EXPORTER_CONTAINER_NAME:-umami-postgres-exporter}
     restart: unless-stopped
     depends_on:
       postgres-exporter-init:
